@@ -487,26 +487,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <?php if ($messageClass !== 'success'): ?>
         <form method="POST" onsubmit="return handleSubmit()">
             <div class="form-group">
-                <label class="form-label">I am a:</label>
-                <div class="user-type-options">
-                    <div class="user-type-option">
-                        <input type="radio" id="student" name="user_type" value="student" <?php echo (isset($_POST['user_type']) && $_POST['user_type'] === 'student') ? 'checked' : ''; ?> required>
-                        <label for="student" class="user-type-label">
-                            <i class="fas fa-user-graduate"></i>
-                            Student
-                        </label>
-                    </div>
-                    <div class="user-type-option">
-                        <input type="radio" id="institution" name="user_type" value="institution" <?php echo (isset($_POST['user_type']) && $_POST['user_type'] === 'institution') ? 'checked' : ''; ?> required>
-                        <label for="institution" class="user-type-label">
-                            <i class="fas fa-university"></i>
-                            Institution
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-group">
                 <label for="email" class="form-label">Email Address:</label>
                 <div class="input-container">
                     <input type="email" name="email" id="email" placeholder="Enter your registered email" value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>" required>

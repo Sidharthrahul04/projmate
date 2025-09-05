@@ -71,7 +71,6 @@ try {
                         $institution['phone'] = $result['phone_number'];
                     }
                   
-                    
                     $data_found = true;
                     break;
                 }
@@ -112,7 +111,7 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
       <i class="fas fa-building"></i>
       Profile
     </button>
-    <button class="nav-btn" onclick="showSection('my_projects')" id="nav-my-projects">
+    <button class="nav-btn" onclick="showSection('my_projects')" id="nav-my_projects">
       <i class="fas fa-clipboard-list"></i>
       My Projects
     </button>
@@ -188,8 +187,8 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
         <div id="quick_stats">
           <div class="stats-grid">
             <div class="stat-item">
-              <div class="stat-number">0</div>
-              <div class="stat-label">Projects</div>
+              <!-- <div class="stat-number">0</div>
+              <div class="stat-label">Projects</div> -->
             </div>
           </div>
         </div>
@@ -197,9 +196,9 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
       
       <div style="margin-top: 20px;">
         <button class="btn" onclick="location.href='update_institution_profile.php'" style="width: 100%;">
-          <i class="fas fa-edit"></i>
-          Edit Profile
-        </button>
+    <i class="fas fa-edit"></i>
+    Edit Profile
+</button>
       </div>
     </div>
 
@@ -251,7 +250,43 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
 </div>
 
 <script>
-/* Same JavaScript as before - abbreviated for space */
+// Small notification box function
+function showNotification(message, type) {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    z-index: 10000;
+    opacity: 0;
+    transition: all 0.3s ease;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    background-color: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+  `;
+  
+  notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'times-circle' : 'info-circle'}"></i> ${message}`;
+  
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.opacity = '1';
+  }, 10);
+  
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        document.body.removeChild(notification);
+      }
+    }, 300);
+  }, 3000);
+}
+
 function setActiveNav(sectionName) {
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.remove('active');
@@ -265,9 +300,12 @@ function setActiveNav(sectionName) {
 
 function loadFragment(url) {
   const target = document.getElementById('content_area');
-  target.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Loading...</div>';
+  target.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
   
-  return fetch(url, {cache: 'no-store'})
+  return fetch(url, {
+    cache: 'no-store',
+    credentials: 'same-origin'
+  })
     .then(resp => {
       if (!resp.ok) throw new Error('Network response not OK');
       return resp.text();
@@ -293,15 +331,90 @@ function loadFragment(url) {
     });
 }
 
+function deleteProject(projectId) {
+    if (confirm('Are you sure you want to delete this project? All applications will be lost.')) {
+        fetch('delete_project.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'same-origin',
+            body: JSON.stringify({ project_id: projectId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Project deleted successfully!', 'success');
+                document.getElementById('project-' + projectId).remove();
+                
+                if (document.querySelectorAll('.project-card').length === 0) {
+                    showSection('my_projects');
+                }
+            } else {
+                showNotification('Failed to delete project: ' + data.error, 'error');
+            }
+        })
+        .catch(() => showNotification('Network error, please try again.', 'error'));
+    }
+}
+
+function viewApplications(projectId) {
+    loadFragment('view_applications.php?project_id=' + projectId);
+}
+
 function showSection(name) {
   setActiveNav(name);
   
-  if (name === 'projects') {
-    loadFragment('post_project.php');
+  if (name === 'profile') {
+    document.getElementById('content_area').innerHTML = `
+      <h2>
+        <i class="fas fa-home" style="margin-right: 12px;"></i>
+        Dashboard Overview
+      </h2>
+      <p class="small-muted" style="margin-bottom: 20px;">
+        Welcome to your ProjMate institution dashboard! Here you can post projects, manage applications, 
+        and connect with talented students.
+      </p>
+      
+      <div style="display: grid; gap: 16px; margin-top: 24px;">
+        <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.2);">
+          <h4 style="color: var(--primary-color); margin-bottom: 8px;">
+            <i class="fas fa-plus-circle"></i>
+            Post New Project
+          </h4>
+          <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.9rem;">
+            Create and publish new project opportunities to attract talented students.
+          </p>
+          <button class="btn" onclick="openProjectModal()">
+            <i class="fas fa-arrow-right"></i>
+            Create Project
+          </button>
+        </div>
+        
+        <div style="background: rgba(16, 185, 129, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2);">
+          <h4 style="color: var(--success-color); margin-bottom: 8px;">
+            <i class="fas fa-clipboard-list"></i>
+            Manage Projects
+          </h4>
+          <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.9rem;">
+            View and manage your posted projects, review applications, and select students.
+          </p>
+          <button class="btn secondary" onclick="showSection('my_projects')">
+            <i class="fas fa-arrow-right"></i>
+            View Projects
+          </button>
+        </div>
+      </div>
+    `;
   } else if (name === 'my_projects') {
     loadFragment('manage_projects.php');
   } else if (name === 'students') {
-    loadFragment('filter_students.php');
+    document.getElementById('content_area').innerHTML = `
+      <h2><i class="fas fa-bell"></i> Notifications</h2>
+      <div style="text-align: center; padding: 40px; color: #64748b;">
+        <i class="fas fa-bell-slash" style="font-size: 3rem; margin-bottom: 16px; color: #cbd5e1;"></i>
+        <p style="font-size: 1.1rem; margin-bottom: 8px;">No Notifications</p>
+        <p style="font-size: 0.9rem;">You'll receive notifications when students apply to your projects.</p>
+      </div>
+    `;
   } else if (name === 'analytics') {
     loadFragment('analytics.php');
   }
@@ -340,6 +453,7 @@ function loadQuickStats() {
 }
 
 function initializeDashboard() {
+  setActiveNav('profile');
   loadQuickStats();
   
   <?php if ($posted): ?>

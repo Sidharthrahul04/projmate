@@ -1,7 +1,4 @@
-<!-- project_modal.php -->
-<!-- Include this file where you need the Add Project modal -->
-
-<!-- Modal Structure -->
+<!-- Modal for adding a new project -->
 <div id="projectModal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
@@ -30,20 +27,17 @@
     </div>
     <div class="modal-footer">
       <button class="btn secondary" onclick="closeProjectModal()">Cancel</button>
-      <button class="btn" onclick="saveProject()"><i class="fas fa-save"></i> Save Project</button>
+      <button class="btn" onclick="postProject()"><i class="fas fa-paper-plane"></i> Post</button>
     </div>
   </div>
 </div>
 
-<!-- Modal Styles -->
 <style>
 .modal {
   display: none;
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
   background: rgba(0,0,0,0.5);
   backdrop-filter: blur(4px);
   z-index: 1000;
@@ -78,8 +72,7 @@
   margin-bottom: 8px;
   font-weight: 500;
 }
-.form-group input,
-.form-group textarea {
+.form-group input, .form-group textarea {
   width: 100%;
   padding: 12px;
   border: 1px solid #ccc;
@@ -90,54 +83,47 @@
 .modal-footer { gap: 12px; }
 </style>
 
-<!-- Modal Script -->
 <script>
-// Open & close handlers
 function openProjectModal() {
   document.getElementById('projectModal').style.display = 'block';
   document.body.style.overflow = 'hidden';
 }
+
 function closeProjectModal() {
   document.getElementById('projectModal').style.display = 'none';
   document.body.style.overflow = 'auto';
 }
 
-// Attach to a trigger button by ID
-// Example: document.getElementById('openProjectBtn').addEventListener('click', openProjectModal);
-
-// Close when clicking outside modal
-window.addEventListener('click', function(e) {
-  const modal = document.getElementById('projectModal');
-  if (e.target === modal) {
-    closeProjectModal();
-  }
-});
-
-// AJAX saveProject() placeholder
-function saveProject() {
+function postProject() {
   const form = document.getElementById('projectForm');
   const data = {
-    institution_id: window.INSTITUTION_ID, // set this globally where you include the modal
     title: form.title.value.trim(),
     description: form.description.value.trim(),
     required_skills: form.required_skills.value.trim(),
     deadline: form.deadline.value
   };
+
+  if (!data.title || !data.description) {
+    showNotification('Please fill out the project title and description.', 'error');
+    return;
+  }
+
   fetch('post_project.php', {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
     body: JSON.stringify(data)
-  })
-  .then(r => r.json())
-  .then(json => {
-    if (json.success) {
-      closeProjectModal();
-      alert('Project created successfully');
-      // optionally refresh list or stats
-    } else {
-      alert(json.error);
-    }
-  })
-  .catch(() => alert('Network error'));
+  }).then(resp => resp.json())
+    .then(resp => {
+      if (resp.success) {
+        closeProjectModal();
+        showNotification('Project posted successfully!', 'success');
+        showSection('my_projects');
+        form.reset();
+      } else {
+        showNotification('Failed to post project: ' + resp.error, 'error');
+      }
+    })
+    .catch(() => showNotification('Network error, please try again.', 'error'));
 }
 </script>

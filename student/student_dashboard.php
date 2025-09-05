@@ -3,16 +3,13 @@
 session_start();
 include('../includes/db_connect.php');
 
-
 // Ensure user is logged-in student
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'student') {
     header("Location: ../login.php");
     exit;
 }
 
-
 $student_id = (int) $_SESSION['user_id'];
-
 
 // Fetch student's basic info
 $stmt = $conn->prepare("SELECT name, email, phone, resume_path FROM students WHERE id = ?");
@@ -51,13 +48,9 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
       <i class="fas fa-search"></i>
       Projects
     </button>
-    <button class="nav-btn" onclick="showSection('my_projects')" id="nav-my-projects">
+    <button class="nav-btn" onclick="showSection('my_projects')" id="nav-my_projects">
       <i class="fas fa-folder"></i>
       My Projects
-    </button>
-    <button class="nav-btn" onclick="showSection('notifications')" id="nav-notifications">
-      <i class="fas fa-bell"></i>
-      Notifications
     </button>
     <button class="nav-btn logout" onclick="location.href='../logout.php'">
       <i class="fas fa-sign-out-alt"></i>
@@ -83,9 +76,10 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
       </div>
     </div>
     <div class="action-buttons">
-      <button class="btn" onclick="showSection('projects')">
-        <i class="fas fa-search"></i>
-        Find Projects
+      <!-- ADDED: Analyze Resume Button -->
+      <button class="btn" onclick="analyzeResume()">
+        <i class="fas fa-robot"></i>
+        Analyze Resume
       </button>
       <button class="btn secondary" onclick="showSection('my_projects')">
         <i class="fas fa-folder"></i>
@@ -137,21 +131,6 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
         </div>
       </div>
       
-      <div class="stats-container">
-        <div id="quick_stats">
-          <div class="stats-grid">
-            <div class="stat-item">
-              <div class="stat-number">0</div>
-              <div class="stat-label">Applied</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-number">0</div>
-              <div class="stat-label">Accepted</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
       <div style="margin-top: 20px;">
         <button class="btn" onclick="location.href='update_profile.php'" style="width: 100%;">
           <i class="fas fa-edit"></i>
@@ -169,22 +148,22 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
           Dashboard Overview
         </h2>
         <p class="small-muted" style="margin-bottom: 20px;">
-          Welcome to your ProjMate dashboard! Here you can manage your profile, browse available projects, 
-          track your applications, and stay updated with notifications.
+          Welcome to your ProjMate dashboard! Here you can manage your profile and track your academic project portfolio.
         </p>
         
         <div style="display: grid; gap: 16px; margin-top: 24px;">
+          <!-- ADDED: AI Recommendations Card -->
           <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.2);">
             <h4 style="color: var(--primary-color); margin-bottom: 8px;">
-              <i class="fas fa-search"></i>
-              Browse Projects
+              <i class="fas fa-robot"></i>
+              AI-Powered Project Matching
             </h4>
             <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.9rem;">
-              Discover exciting project opportunities posted by institutions.
+              Get personalized project recommendations based on your resume and skills.
             </p>
             <button class="btn" onclick="showSection('projects')">
               <i class="fas fa-arrow-right"></i>
-              Explore Now
+              View Smart Recommendations
             </button>
           </div>
           
@@ -208,7 +187,70 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
 </div>
 
 <script>
-/* Enhanced Single-page behavior with modern UI feedback */
+// ADDED: Small notification box function
+function showNotification(message, type) {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    z-index: 10000;
+    opacity: 0;
+    transition: all 0.3s ease;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    background-color: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+  `;
+  
+  notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'times-circle' : 'info-circle'}"></i> ${message}`;
+  
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.opacity = '1';
+  }, 10);
+  
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        document.body.removeChild(notification);
+      }
+    }, 300);
+  }, 3000);
+}
+
+// ADDED: Analyze Resume function
+function analyzeResume() {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+    
+    fetch('analyze_resume.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Resume analyzed successfully! Check smart recommendations.', 'success');
+                // Show projects section to see recommendations
+                showSection('projects');
+            } else {
+                showNotification('Analysis failed: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Network error during analysis.', 'error');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+}
 
 /* Active navigation state management */
 function setActiveNav(sectionName) {
@@ -227,14 +269,22 @@ function loadFragment(url) {
   const target = document.getElementById('content_area');
   target.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Loading...</div>';
   
-  return fetch(url, {cache: 'no-store'})
+  return fetch(url, {cache: 'no-store', credentials: 'same-origin'})
     .then(resp => {
-      if (!resp.ok) throw new Error('Network response not OK');
+      if (!resp.ok) {
+        if (resp.status === 401 || resp.status === 403) {
+          throw new Error('Please log in again to access this section.');
+        }
+        throw new Error('Network response not OK');
+      }
       return resp.text();
     })
     .then(html => {
+      if (html.includes('Unauthorized access')) {
+        throw new Error('This section is not yet available. Please check back later.');
+      }
+      
       target.innerHTML = html;
-      // Add slide-in animation
       target.style.opacity = '0';
       target.style.transform = 'translateY(20px)';
       setTimeout(() => {
@@ -245,12 +295,15 @@ function loadFragment(url) {
     })
     .catch(err => {
       target.innerHTML = `
-        <div class="empty-msg">
-          <i class="fas fa-exclamation-triangle" style="color: var(--warning-color); margin-right: 8px;"></i>
-          Failed to load content. Please try again.
+        <div class="empty-msg" style="text-align: center; padding: 40px; color: #64748b;">
+          <i class="fas fa-info-circle" style="font-size: 3rem; margin-bottom: 16px; color: #cbd5e1;"></i>
+          <p style="font-size: 1.1rem; margin-bottom: 8px;">Section Not Available</p>
+          <p style="font-size: 0.9rem;">${err.message}</p>
+          <button class="btn" onclick="showSection('profile')" style="margin-top: 16px;">
+            <i class="fas fa-home"></i> Back to Dashboard
+          </button>
         </div>
       `;
-      console.error(err);
     });
 }
 
@@ -258,8 +311,49 @@ function loadFragment(url) {
 function showSection(name) {
   setActiveNav(name);
   
-  if (name === 'projects') {
-    loadFragment('fetch_projects.php');
+  if (name === 'profile') {
+    // Restore default dashboard overview content
+    document.getElementById('content_area').innerHTML = `
+      <h2>
+        <i class="fas fa-home" style="margin-right: 12px;"></i>
+        Dashboard Overview
+      </h2>
+      <p class="small-muted" style="margin-bottom: 20px;">
+        Welcome to your ProjMate dashboard! Here you can manage your profile and track your academic project portfolio.
+      </p>
+      
+      <div style="display: grid; gap: 16px; margin-top: 24px;">
+        <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.2);">
+          <h4 style="color: var(--primary-color); margin-bottom: 8px;">
+            <i class="fas fa-robot"></i>
+            AI-Powered Project Matching
+          </h4>
+          <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.9rem;">
+            Get personalized project recommendations based on your resume and skills.
+          </p>
+          <button class="btn" onclick="showSection('projects')">
+            <i class="fas fa-arrow-right"></i>
+            View Smart Recommendations
+          </button>
+        </div>
+        
+        <div style="background: rgba(16, 185, 129, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2);">
+          <h4 style="color: var(--success-color); margin-bottom: 8px;">
+            <i class="fas fa-folder-open"></i>
+            My Applications
+          </h4>
+          <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.9rem;">
+            Track the status of your project applications and manage your portfolio.
+          </p>
+          <button class="btn secondary" onclick="showSection('my_projects')">
+            <i class="fas fa-arrow-right"></i>
+            View Applications
+          </button>
+        </div>
+      </div>
+    `;
+  } else if (name === 'projects') {
+    loadFragment('smart_project_recommendations.php');
   } else if (name === 'my_projects') {
     loadFragment('project_analysis.php');
   } else if (name === 'notifications') {
@@ -267,115 +361,10 @@ function showSection(name) {
   }
 }
 
-/* Enhanced project application with better feedback */
-function applyProject(projectId, btn) {
-  if (!confirm('Are you sure you want to apply for this project?')) return;
-  
-  const originalText = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...';
-  
-  fetch('apply_projects.php', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ project_id: projectId })
-  })
-  .then(r => r.json())
-  .then(json => {
-    if (json.success) {
-      btn.innerHTML = '<i class="fas fa-check"></i> Applied';
-      btn.style.background = 'var(--success-color)';
-      loadQuickStats(); // Refresh stats
-      
-      // Show success feedback
-      showNotification('Application submitted successfully!', 'success');
-    } else {
-      throw new Error(json.error || 'Failed to apply');
-    }
-  })
-  .catch(err => {
-    btn.disabled = false;
-    btn.innerHTML = originalText;
-    showNotification(err.message || 'Network error occurred', 'error');
-    console.error(err);
-  });
-}
-
-/* Enhanced quick stats loader */
-function loadQuickStats() {
-  fetch('project_analysis.php?stats_only=1', {cache: 'no-store'})
-    .then(r => {
-      if (!r.ok) throw new Error('Network error');
-      return r.json();
-    })
-    .then(j => {
-      const statsContainer = document.getElementById('quick_stats');
-      statsContainer.innerHTML = `
-        <div class="stats-grid">
-          <div class="stat-item">
-            <div class="stat-number">${j.applied || 0}</div>
-            <div class="stat-label">Applied</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number">${j.accepted || 0}</div>
-            <div class="stat-label">Accepted</div>
-          </div>
-        </div>
-      `;
-      
-      // Add animation
-      statsContainer.style.opacity = '0';
-      setTimeout(() => {
-        statsContainer.style.transition = 'opacity 0.3s ease';
-        statsContainer.style.opacity = '1';
-      }, 100);
-    })
-    .catch(() => {
-      // Fail silently or show default
-    });
-}
-
-/* Notification system */
-function showNotification(message, type = 'info') {
-  const notification = document.createElement('div');
-  notification.style.cssText = `
-    position: fixed;
-    top: 80px;
-    right: 20px;
-    background: ${type === 'success' ? 'var(--success-color)' : type === 'error' ? 'var(--error-color)' : 'var(--primary-color)'};
-    color: white;
-    padding: 12px 20px;
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-    z-index: 1000;
-    transform: translateX(100%);
-    transition: transform 0.3s ease;
-    max-width: 300px;
-    font-weight: 500;
-  `;
-  
-  notification.innerHTML = `
-    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-    ${message}
-  `;
-  
-  document.body.appendChild(notification);
-  
-  setTimeout(() => {
-    notification.style.transform = 'translateX(0)';
-  }, 100);
-  
-  setTimeout(() => {
-    notification.style.transform = 'translateX(100%)';
-    setTimeout(() => {
-      document.body.removeChild(notification);
-    }, 300);
-  }, 3000);
-}
-
 /* Initialize dashboard */
 function initializeDashboard() {
-  loadQuickStats();
+  // Set profile as active by default
+  setActiveNav('profile');
   
   // Show success notification if profile was just updated
   <?php if ($updated): ?>
