@@ -9,78 +9,88 @@ $message = '';
 $messageClass = '';
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $email = $_POST['email'];
-    $user_type = $_POST['user_type'];
+    $email = $_POST['email'] ?? '';
+    $user_type = $_POST['user_type'] ?? '';
 
-    $table = ($user_type === "student") ? "students" : "institutions";
-    $query = "SELECT * FROM $table WHERE email = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    // Validate inputs
+    if (empty($email) || empty($user_type)) {
+        $message = "Please fill in all required fields.";
+        $messageClass = "error";
+    } else {
+        $table = ($user_type === "student") ? "students" : "institutions";
+        $query = "SELECT * FROM $table WHERE email = ?";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
-    if ($result->num_rows === 1) {
-        $token = bin2hex(random_bytes(32));
-        $expiry = date("Y-m-d H:i:s", strtotime('+1 hour'));
+        if ($result->num_rows === 1) {
+            // Generate secure token
+            $token = bin2hex(random_bytes(32));
+            $expiry = date("Y-m-d H:i:s", strtotime('+1 hour'));
 
-        // Remove existing tokens
-        $delete_stmt = $conn->prepare("DELETE FROM password_resets WHERE email = ?");
-        if ($delete_stmt) {
-            $delete_stmt->bind_param("s", $email);
-            $delete_stmt->execute();
-        }
+            // Remove existing tokens for this email
+            $delete_stmt = $conn->prepare("DELETE FROM password_resets WHERE email = ? AND user_type = ?");
+            if ($delete_stmt) {
+                $delete_stmt->bind_param("ss", $email, $user_type);
+                $delete_stmt->execute();
+                $delete_stmt->close();
+            }
 
-        // Save new token
-        $insert = $conn->prepare("INSERT INTO password_resets (email, token, expires_at, user_type) VALUES (?, ?, ?, ?)");
-        $insert->bind_param("ssss", $email, $token, $expiry, $user_type);
-        $insert->execute();
+            // Save new token
+            $insert = $conn->prepare("INSERT INTO password_resets (email, token, expires_at, user_type) VALUES (?, ?, ?, ?)");
+            $insert->bind_param("ssss", $email, $token, $expiry, $user_type);
+            $insert->execute();
+            $insert->close();
 
-        $reset_link = "http://localhost:5050/projmate/reset_password.php?token=$token&user_type=$user_type";
+            $reset_link = "http://localhost:5050/projmate/reset_password.php?token=$token&user_type=$user_type";
 
-        $mail = new PHPMailer(true);
-        try {
-            $mail->isSMTP();
-            $mail->Host       = 'smtp.gmail.com';
-            $mail->SMTPAuth   = true;
-            $mail->Username   = 'projmate@gmail.com';
-            $mail->Password   = 'qoeomijbbkkjvxjx';
-            $mail->SMTPSecure = 'tls';
-            $mail->Port       = 587;
+            $mail = new PHPMailer(true);
+            try {
+                $mail->isSMTP();
+                $mail->Host       = 'smtp.gmail.com';
+                $mail->SMTPAuth   = true;
+                $mail->Username   = 'projmate@gmail.com';
+                $mail->Password   = 'qoeomijbbkkjvxjx';
+                $mail->SMTPSecure = 'tls';
+                $mail->Port       = 587;
 
-            $mail->setFrom('projmate@gmail.com', 'ProjMate');
-            $mail->addAddress($email);
+                $mail->setFrom('projmate@gmail.com', 'ProjMate');
+                $mail->addAddress($email);
 
-            $mail->isHTML(true);
-            $mail->Subject = 'Reset your password - ProjMate';
-            $mail->Body    = "
-                <div style='font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1);'>
-                    <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;'>
-                        <h1 style='color: white; margin: 0; font-size: 2rem; font-weight: 700;'>ProjMate</h1>
-                        <p style='color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 1rem;'>Password Reset Request</p>
-                    </div>
-                    <div style='padding: 40px 30px;'>
-                        <h2 style='color: #1e293b; margin: 0 0 16px 0; font-size: 1.5rem; font-weight: 600;'>Reset Your Password</h2>
-                        <p style='color: #64748b; margin: 0 0 24px 0; line-height: 1.6;'>We received a request to reset your password. Click the button below to create a new password:</p>
-                        <div style='text-align: center; margin: 32px 0;'>
-                            <a href='$reset_link' style='display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 1rem;'>Reset Password</a>
+                $mail->isHTML(true);
+                $mail->Subject = 'Reset your password - ProjMate';
+                $mail->Body    = "
+                    <div style='font-family: Inter, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1);'>
+                        <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;'>
+                            <h1 style='color: white; margin: 0; font-size: 2rem; font-weight: 700;'>ProjMate</h1>
+                            <p style='color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 1rem;'>Password Reset Request</p>
                         </div>
-                        <p style='color: #94a3b8; font-size: 0.875rem; margin: 24px 0 0 0;'>If you didn't request this reset, you can safely ignore this email. This link will expire in 1 hour.</p>
-                        <hr style='border: none; height: 1px; background: #e2e8f0; margin: 24px 0;'>
-                        <p style='color: #94a3b8; font-size: 0.8rem; margin: 0;'>Or copy and paste this link: <span style='color: #667eea; word-break: break-all;'>$reset_link</span></p>
+                        <div style='padding: 40px 30px;'>
+                            <h2 style='color: #1e293b; margin: 0 0 16px 0; font-size: 1.5rem; font-weight: 600;'>Reset Your Password</h2>
+                            <p style='color: #64748b; margin: 0 0 24px 0; line-height: 1.6;'>We received a request to reset your password. Click the button below to create a new password:</p>
+                            <div style='text-align: center; margin: 32px 0;'>
+                                <a href='$reset_link' style='display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 1rem;'>Reset Password</a>
+                            </div>
+                            <p style='color: #94a3b8; font-size: 0.875rem; margin: 24px 0 0 0;'>If you didn't request this reset, you can safely ignore this email. This link will expire in 1 hour.</p>
+                            <hr style='border: none; height: 1px; background: #e2e8f0; margin: 24px 0;'>
+                            <p style='color: #94a3b8; font-size: 0.8rem; margin: 0;'>Or copy and paste this link: <span style='color: #667eea; word-break: break-all;'>$reset_link</span></p>
+                        </div>
                     </div>
-                </div>
-            ";
+                ";
 
-            $mail->send();
-            $message = "Password reset link has been sent to your email address. Please check your inbox and follow the instructions.";
-            $messageClass = "success";
-        } catch (Exception $e) {
-            $message = "Failed to send reset email. Please try again later.";
+                $mail->send();
+                $message = "Password reset link has been sent to your email address. Please check your inbox and follow the instructions.";
+                $messageClass = "success";
+            } catch (Exception $e) {
+                $message = "Failed to send reset email. Please try again later.";
+                $messageClass = "error";
+            }
+        } else {
+            $message = "No account found with this email address.";
             $messageClass = "error";
         }
-    } else {
-        $message = "No account found with this email address.";
-        $messageClass = "error";
+        $stmt->close();
     }
 }
 ?>
@@ -251,8 +261,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             transition: color 0.3s ease;
         }
 
-        input[type="email"],
-        select {
+        input[type="email"] {
             width: 100%;
             padding: 16px 16px 16px 48px;
             border: 2px solid #e2e8f0;
@@ -262,18 +271,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             background: #f8fafc;
             transition: all 0.3s ease;
             outline: none;
-            cursor: pointer;
         }
 
-        input[type="email"]:focus,
-        select:focus {
+        input[type="email"]:focus {
             border-color: #667eea;
             background: white;
             box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
         }
 
-        input[type="email"]:focus + i,
-        select:focus + i {
+        input[type="email"]:focus + i {
             color: #667eea;
         }
 
@@ -425,7 +431,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             }
         }
 
-        /* Loading state */
         .send-btn.loading {
             pointer-events: none;
             opacity: 0.7;
@@ -449,7 +454,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             to { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
-        /* Success animation */
         .success-animation {
             text-align: center;
             animation: successPulse 0.6s ease-out;
@@ -494,6 +498,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 </div>
             </div>
 
+            <div class="user-type-options">
+                <div class="user-type-option">
+                    <input type="radio" name="user_type" value="student" id="student" <?php echo (isset($_POST['user_type']) && $_POST['user_type'] === 'student') ? 'checked' : ''; ?> required>
+                    <label for="student" class="user-type-label">
+                        <i class="fas fa-user-graduate"></i>
+                        Student
+                    </label>
+                </div>
+                <div class="user-type-option">
+                    <input type="radio" name="user_type" value="institution" id="institution" <?php echo (isset($_POST['user_type']) && $_POST['user_type'] === 'institution') ? 'checked' : ''; ?> required>
+                    <label for="institution" class="user-type-label">
+                        <i class="fas fa-university"></i>
+                        Institution
+                    </label>
+                </div>
+            </div>
+
             <button type="submit" class="send-btn" id="sendBtn">
                 <i class="fas fa-paper-plane"></i>
                 Send Reset Link
@@ -519,14 +540,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             return true;
         }
 
-        // Auto-redirect after successful message
         <?php if ($messageClass === 'success'): ?>
             setTimeout(() => {
                 window.location.href = 'login.php';
             }, 5000);
         <?php endif; ?>
 
-        // Add hover effects to radio buttons
         document.querySelectorAll('.user-type-label').forEach(label => {
             label.addEventListener('mouseenter', function() {
                 if (!this.previousElementSibling.checked) {
@@ -543,7 +562,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             });
         });
 
-        // Email input focus effects
         document.getElementById('email').addEventListener('focus', function() {
             this.parentElement.querySelector('i').style.color = '#667eea';
         });

@@ -307,7 +307,7 @@ function loadFragment(url) {
     });
 }
 
-/* Enhanced section navigation */
+/* FIXED: Enhanced section navigation */
 function showSection(name) {
   setActiveNav(name);
   
@@ -353,7 +353,8 @@ function showSection(name) {
       </div>
     `;
   } else if (name === 'projects') {
-    loadFragment('smart_project_recommendations.php');
+    // FIXED: Changed from smart_project_recommendations.php to project_analysis.php
+    loadFragment('project_analysis.php');  // ✅ This shows ALL projects
   } else if (name === 'my_projects') {
     loadFragment('project_analysis.php');
   } else if (name === 'notifications') {
