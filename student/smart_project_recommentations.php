@@ -18,11 +18,11 @@ $student = $stmt->get_result()->fetch_assoc();
 
 $student_skills = json_decode($student['skills'] ?? '[]', true);
 
-// Get available projects
+// FIXED: Changed to LEFT JOIN to include all available projects
 $projects_stmt = $conn->prepare("
-    SELECT p.*, i.institution_name, i.email as inst_email
+    SELECT p.*, COALESCE(i.institution_name, 'Institution') as institution_name, i.email as inst_email
     FROM projects p 
-    JOIN institutions i ON p.institution_id = i.id 
+    LEFT JOIN institutions i ON p.institution_id = i.id 
     WHERE p.id NOT IN (
         SELECT project_id FROM applications WHERE student_id = ?
     )

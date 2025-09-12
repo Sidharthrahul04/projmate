@@ -105,26 +105,3 @@ $applications = $stmt->get_result();
 .status-pending { background: #fef3c7; color: #92400e; }
 .success { background: #10b981 !important; color: white; }
 </style>
-
-<script>
-function updateApplicationStatus(applicationId, status) {
-    if (confirm('Are you sure you want to ' + status + ' this application?')) {
-        fetch('update_application_status.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            credentials: 'same-origin',
-            body: JSON.stringify({ application_id: applicationId, status: status })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('Application ' + status + ' successfully!', 'success');
-                location.reload();
-            } else {
-                showNotification('Failed to update application: ' + data.error, 'error');
-            }
-        })
-        .catch(() => showNotification('Network error, please try again.', 'error'));
-    }
-}
-</script>

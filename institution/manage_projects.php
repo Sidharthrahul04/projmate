@@ -50,7 +50,7 @@ $projects = $stmt->get_result();
                 
                 <div class="project-actions">
                     <button class="btn secondary" onclick="viewApplications(<?= $project['id'] ?>)">
-                        <i class="fas fa-users"></i> View Applications
+                        <i class="fas fa-users"></i> View Applications  
                     </button>
                     <button class="btn delete-btn" onclick="deleteProject(<?= $project['id'] ?>)">
                         <i class="fas fa-trash"></i> Delete

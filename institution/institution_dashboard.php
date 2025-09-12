@@ -407,6 +407,8 @@ function showSection(name) {
   } else if (name === 'my_projects') {
     loadFragment('manage_projects.php');
   } else if (name === 'students') {
+    loadFragment('notifications.php'); // Change this line
+} else if (name === 'analytics') {
     document.getElementById('content_area').innerHTML = `
       <h2><i class="fas fa-bell"></i> Notifications</h2>
       <div style="text-align: center; padding: 40px; color: #64748b;">
@@ -470,6 +472,247 @@ function initializeDashboard() {
 }
 
 document.addEventListener('DOMContentLoaded', initializeDashboard);
+
+// Add this function to your main dashboard JavaScript section
+// (in the <script> tag at the bottom of institution_dashboard.php)
+
+function updateApplicationStatus(applicationId, status) {
+    if (confirm('Are you sure you want to ' + status + ' this application?')) {
+        fetch('update_application_status.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'same-origin',
+            body: JSON.stringify({ application_id: applicationId, status: status })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Application ' + status + ' successfully!', 'success');
+                // Reload the applications view instead of the entire page
+                const urlParams = new URLSearchParams(window.location.search);
+                const projectId = document.querySelector('[onclick*="viewApplications"]')?.getAttribute('onclick')?.match(/\d+/)?.[0];
+                if (projectId) {
+                    viewApplications(projectId);
+                } else {
+                    location.reload();
+                }
+            } else {
+                showNotification('Failed to update application: ' + data.error, 'error');
+            }
+        })
+        .catch(() => showNotification('Network error, please try again.', 'error'));
+    }
+}
+
+// Small notification box function
+function showNotification(message, type) {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    z-index: 10000;
+    opacity: 0;
+    transition: all 0.3s ease;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    background-color: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+  `;
+  
+  notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'times-circle' : 'info-circle'}"></i> ${message}`;
+  
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.opacity = '1';
+  }, 10);
+  
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        document.body.removeChild(notification);
+      }
+    }, 300);
+  }, 3000);
+}
+
+function setActiveNav(sectionName) {
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  const navBtn = document.getElementById('nav-' + sectionName);
+  if (navBtn) {
+    navBtn.classList.add('active');
+  }
+}
+
+function loadFragment(url) {
+  const target = document.getElementById('content_area');
+  target.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+  
+  return fetch(url, {
+    cache: 'no-store',
+    credentials: 'same-origin'
+  })
+    .then(resp => {
+      if (!resp.ok) throw new Error('Network response not OK');
+      return resp.text();
+    })
+    .then(html => {
+      target.innerHTML = html;
+      target.style.opacity = '0';
+      target.style.transform = 'translateY(20px)';
+      setTimeout(() => {
+        target.style.transition = 'all 0.3s ease';
+        target.style.opacity = '1';
+        target.style.transform = 'translateY(0)';
+      }, 50);
+    })
+    .catch(err => {
+      target.innerHTML = `
+        <div class="empty-msg">
+          <i class="fas fa-exclamation-triangle" style="color: var(--warning-color); margin-right: 8px;"></i>
+          Failed to load content. Please try again.
+        </div>
+      `;
+      console.error(err);
+    });
+}
+
+function deleteProject(projectId) {
+    if (confirm('Are you sure you want to delete this project? All applications will be lost.')) {
+        fetch('delete_project.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'same-origin',
+            body: JSON.stringify({ project_id: projectId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Project deleted successfully!', 'success');
+                document.getElementById('project-' + projectId).remove();
+                
+                if (document.querySelectorAll('.project-card').length === 0) {
+                    showSection('my_projects');
+                }
+            } else {
+                showNotification('Failed to delete project: ' + data.error, 'error');
+            }
+        })
+        .catch(() => showNotification('Network error, please try again.', 'error'));
+    }
+}
+
+function viewApplications(projectId) {
+    loadFragment('view_applications.php?project_id=' + projectId);
+}
+
+function showSection(name) {
+  setActiveNav(name);
+  
+  if (name === 'profile') {
+    document.getElementById('content_area').innerHTML = `
+      <h2>
+        <i class="fas fa-home" style="margin-right: 12px;"></i>
+        Dashboard Overview
+      </h2>
+      <p class="small-muted" style="margin-bottom: 20px;">
+        Welcome to your ProjMate institution dashboard! Here you can post projects, manage applications, 
+        and connect with talented students.
+      </p>
+      
+      <div style="display: grid; gap: 16px; margin-top: 24px;">
+        <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.2);">
+          <h4 style="color: var(--primary-color); margin-bottom: 8px;">
+            <i class="fas fa-plus-circle"></i>
+            Post New Project
+          </h4>
+          <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.9rem;">
+            Create and publish new project opportunities to attract talented students.
+          </p>
+          <button class="btn" onclick="openProjectModal()">
+            <i class="fas fa-arrow-right"></i>
+            Create Project
+          </button>
+        </div>
+        
+        <div style="background: rgba(16, 185, 129, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2);">
+          <h4 style="color: var(--success-color); margin-bottom: 8px;">
+            <i class="fas fa-clipboard-list"></i>
+            Manage Projects
+          </h4>
+          <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.9rem;">
+            View and manage your posted projects, review applications, and select students.
+          </p>
+          <button class="btn secondary" onclick="showSection('my_projects')">
+            <i class="fas fa-arrow-right"></i>
+            View Projects
+          </button>
+        </div>
+      </div>
+    `;
+  } else if (name === 'my_projects') {
+    loadFragment('manage_projects.php');
+  } else if (name === 'students') {
+    loadFragment('notifications.php');
+  } else if (name === 'analytics') {
+    document.getElementById('content_area').innerHTML = `
+      <h2><i class="fas fa-bell"></i> Notifications</h2>
+      <div style="text-align: center; padding: 40px; color: #64748b;">
+        <i class="fas fa-bell-slash" style="font-size: 3rem; margin-bottom: 16px; color: #cbd5e1;"></i>
+        <p style="font-size: 1.1rem; margin-bottom: 8px;">No Notifications</p>
+        <p style="font-size: 0.9rem;">You'll receive notifications when students apply to your projects.</p>
+      </div>
+    `;
+  }
+}
+
+function loadQuickStats() {
+  fetch('institution_stats.php?stats_only=1', {cache: 'no-store'})
+    .then(r => {
+      if (!r.ok) throw new Error('Network error');
+      return r.json();
+    })
+    .then(j => {
+      const statsContainer = document.getElementById('quick_stats');
+      statsContainer.innerHTML = `
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-number">${j.projects || 0}</div>
+            <div class="stat-label">Projects</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">${j.applications || 0}</div>
+            <div class="stat-label">Applications</div>
+          </div>
+        </div>
+      `;
+      
+      statsContainer.style.opacity = '0';
+      setTimeout(() => {
+        statsContainer.style.transition = 'opacity 0.3s ease';
+        statsContainer.style.opacity = '1';
+      }, 100);
+    })
+    .catch(() => {
+      console.log('Stats loading failed, using defaults');
+    });
+}
+
+function initializeDashboard() {
+  setActiveNav('profile');
+  loadQuickStats();
+}
+
+document.addEventListener('DOMContentLoaded', initializeDashboard);
 </script>
 </body>
 </html>
+ 

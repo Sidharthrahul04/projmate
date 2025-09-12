@@ -26,7 +26,7 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ProjMate — Student Dashboard</title>
+<title>ProjMate - Student Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <link rel="stylesheet" href="../css/dashboard.css">
@@ -76,7 +76,6 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
       </div>
     </div>
     <div class="action-buttons">
-      <!-- ADDED: Analyze Resume Button -->
       <button class="btn" onclick="analyzeResume()">
         <i class="fas fa-robot"></i>
         Analyze Resume
@@ -142,7 +141,6 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
     <!-- Main Content Area -->
     <div class="card" id="main_card">
       <div id="content_area">
-        <!-- Default profile view -->
         <h2>
           <i class="fas fa-home" style="margin-right: 12px;"></i>
           Dashboard Overview
@@ -152,7 +150,6 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
         </p>
         
         <div style="display: grid; gap: 16px; margin-top: 24px;">
-          <!-- ADDED: AI Recommendations Card -->
           <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.2);">
             <h4 style="color: var(--primary-color); margin-bottom: 8px;">
               <i class="fas fa-robot"></i>
@@ -187,7 +184,76 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
 </div>
 
 <script>
-// ADDED: Small notification box function
+
+function applyToProject(projectId) {
+    // Validate project ID
+    if (!projectId || isNaN(projectId)) {
+        showNotification('Invalid project selected.', 'error');
+        return;
+    }
+
+    // Find the apply button and show loading state
+    const applyBtn = document.querySelector(`[onclick="applyToProject(${projectId})"]`);
+    if (applyBtn) {
+        applyBtn.disabled = true;
+        applyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...';
+    }
+
+    // Make the AJAX request
+    fetch('apply_projects.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin', // Include session cookies
+        body: JSON.stringify({
+            project_id: parseInt(projectId)
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showNotification('Application submitted successfully!', 'success');
+            
+            // Update the button to show applied state
+            if (applyBtn) {
+                applyBtn.innerHTML = '<i class="fas fa-check"></i> Applied';
+                applyBtn.disabled = true;
+                applyBtn.style.backgroundColor = '#10b981';
+                applyBtn.onclick = null; // Remove click handler
+            }
+            
+            // Optionally reload the projects section to show updated status
+            // Uncomment the line below if you want to refresh the projects list
+            // loadFragment('fetch_projects.php');
+            
+        } else {
+            showNotification('Error: ' + (data.error || 'Failed to submit application'), 'error');
+            
+            // Restore button if there was an error
+            if (applyBtn) {
+                applyBtn.disabled = false;
+                applyBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Apply Now';
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Application error:', error);
+        showNotification('Network error occurred. Please try again.', 'error');
+        
+        // Restore button on network error
+        if (applyBtn) {
+            applyBtn.disabled = false;
+            applyBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Apply Now';
+        }
+    });
+}
+
 function showNotification(message, type) {
   const notification = document.createElement('div');
   notification.style.cssText = `
@@ -224,7 +290,6 @@ function showNotification(message, type) {
   }, 3000);
 }
 
-// ADDED: Analyze Resume function
 function analyzeResume() {
     const btn = event.target;
     const originalText = btn.innerHTML;
@@ -237,7 +302,6 @@ function analyzeResume() {
         .then(data => {
             if (data.success) {
                 showNotification('Resume analyzed successfully! Check smart recommendations.', 'success');
-                // Show projects section to see recommendations
                 showSection('projects');
             } else {
                 showNotification('Analysis failed: ' + data.error, 'error');
@@ -252,7 +316,6 @@ function analyzeResume() {
         });
 }
 
-/* Active navigation state management */
 function setActiveNav(sectionName) {
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.remove('active');
@@ -264,7 +327,6 @@ function setActiveNav(sectionName) {
   }
 }
 
-/* Enhanced fragment loader with loading states */
 function loadFragment(url) {
   const target = document.getElementById('content_area');
   target.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Loading...</div>';
@@ -307,12 +369,10 @@ function loadFragment(url) {
     });
 }
 
-/* FIXED: Enhanced section navigation */
 function showSection(name) {
   setActiveNav(name);
   
   if (name === 'profile') {
-    // Restore default dashboard overview content
     document.getElementById('content_area').innerHTML = `
       <h2>
         <i class="fas fa-home" style="margin-right: 12px;"></i>
@@ -353,8 +413,7 @@ function showSection(name) {
       </div>
     `;
   } else if (name === 'projects') {
-    // FIXED: Changed from smart_project_recommendations.php to project_analysis.php
-    loadFragment('project_analysis.php');  // ✅ This shows ALL projects
+    loadFragment('fetch_projects.php');
   } else if (name === 'my_projects') {
     loadFragment('project_analysis.php');
   } else if (name === 'notifications') {
@@ -362,12 +421,9 @@ function showSection(name) {
   }
 }
 
-/* Initialize dashboard */
 function initializeDashboard() {
-  // Set profile as active by default
   setActiveNav('profile');
   
-  // Show success notification if profile was just updated
   <?php if ($updated): ?>
   setTimeout(() => {
     showNotification('Profile updated successfully!', 'success');
@@ -375,7 +431,266 @@ function initializeDashboard() {
   <?php endif; ?>
 }
 
-/* Load on DOM ready */
+document.addEventListener('DOMContentLoaded', initializeDashboard);
+// Add this function to your student dashboard JavaScript section
+
+function withdrawApplication(appId) {
+    if (confirm('Are you sure you want to withdraw this application?')) {
+        fetch('withdraw_application.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'same-origin',
+            body: JSON.stringify({ application_id: appId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Application withdrawn successfully!', 'success');
+                showSection('my_projects'); // Refresh the view
+            } else {
+                showNotification('Failed to withdraw application: ' + data.error, 'error');
+            }
+        })
+        .catch(() => showNotification('Network error, please try again.', 'error'));
+    }
+}
+
+function applyToProject(projectId) {
+    // Validate project ID
+    if (!projectId || isNaN(projectId)) {
+        showNotification('Invalid project selected.', 'error');
+        return;
+    }
+
+    // Find the apply button and show loading state
+    const applyBtn = document.querySelector(`[onclick="applyToProject(${projectId})"]`);
+    if (applyBtn) {
+        applyBtn.disabled = true;
+        applyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...';
+    }
+
+    // Make the AJAX request
+    fetch('apply_projects.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin', // Include session cookies
+        body: JSON.stringify({
+            project_id: parseInt(projectId)
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showNotification('Application submitted successfully!', 'success');
+            
+            // Update the button to show applied state
+            if (applyBtn) {
+                applyBtn.innerHTML = '<i class="fas fa-check"></i> Applied';
+                applyBtn.disabled = true;
+                applyBtn.style.backgroundColor = '#10b981';
+                applyBtn.onclick = null; // Remove click handler
+            }
+            
+        } else {
+            showNotification('Error: ' + (data.error || 'Failed to submit application'), 'error');
+            
+            // Restore button if there was an error
+            if (applyBtn) {
+                applyBtn.disabled = false;
+                applyBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Apply Now';
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Application error:', error);
+        showNotification('Network error occurred. Please try again.', 'error');
+        
+        // Restore button on network error
+        if (applyBtn) {
+            applyBtn.disabled = false;
+            applyBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Apply Now';
+        }
+    });
+}
+
+function showNotification(message, type) {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    z-index: 10000;
+    opacity: 0;
+    transition: all 0.3s ease;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    background-color: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+  `;
+  
+  notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'times-circle' : 'info-circle'}"></i> ${message}`;
+  
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.opacity = '1';
+  }, 10);
+  
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        document.body.removeChild(notification);
+      }
+    }, 300);
+  }, 3000);
+}
+
+function analyzeResume() {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+    
+    fetch('analyze_resume.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Resume analyzed successfully! Check smart recommendations.', 'success');
+                showSection('projects');
+            } else {
+                showNotification('Analysis failed: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Network error during analysis.', 'error');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+}
+
+function setActiveNav(sectionName) {
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  const navBtn = document.getElementById('nav-' + sectionName);
+  if (navBtn) {
+    navBtn.classList.add('active');
+  }
+}
+
+function loadFragment(url) {
+  const target = document.getElementById('content_area');
+  target.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Loading...</div>';
+  
+  return fetch(url, {cache: 'no-store', credentials: 'same-origin'})
+    .then(resp => {
+      if (!resp.ok) {
+        if (resp.status === 401 || resp.status === 403) {
+          throw new Error('Please log in again to access this section.');
+        }
+        throw new Error('Network response not OK');
+      }
+      return resp.text();
+    })
+    .then(html => {
+      if (html.includes('Unauthorized access')) {
+        throw new Error('This section is not yet available. Please check back later.');
+      }
+      
+      target.innerHTML = html;
+      target.style.opacity = '0';
+      target.style.transform = 'translateY(20px)';
+      setTimeout(() => {
+        target.style.transition = 'all 0.3s ease';
+        target.style.opacity = '1';
+        target.style.transform = 'translateY(0)';
+      }, 50);
+    })
+    .catch(err => {
+      target.innerHTML = `
+        <div class="empty-msg" style="text-align: center; padding: 40px; color: #64748b;">
+          <i class="fas fa-info-circle" style="font-size: 3rem; margin-bottom: 16px; color: #cbd5e1;"></i>
+          <p style="font-size: 1.1rem; margin-bottom: 8px;">Section Not Available</p>
+          <p style="font-size: 0.9rem;">${err.message}</p>
+          <button class="btn" onclick="showSection('profile')" style="margin-top: 16px;">
+            <i class="fas fa-home"></i> Back to Dashboard
+          </button>
+        </div>
+      `;
+    });
+}
+
+function showSection(name) {
+  setActiveNav(name);
+  
+  if (name === 'profile') {
+    document.getElementById('content_area').innerHTML = `
+      <h2>
+        <i class="fas fa-home" style="margin-right: 12px;"></i>
+        Dashboard Overview
+      </h2>
+      <p class="small-muted" style="margin-bottom: 20px;">
+        Welcome to your ProjMate dashboard! Here you can manage your profile and track your academic project portfolio.
+      </p>
+      
+      <div style="display: grid; gap: 16px; margin-top: 24px;">
+        <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.2);">
+          <h4 style="color: var(--primary-color); margin-bottom: 8px;">
+            <i class="fas fa-robot"></i>
+            AI-Powered Project Matching
+          </h4>
+          <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.9rem;">
+            Get personalized project recommendations based on your resume and skills.
+          </p>
+          <button class="btn" onclick="showSection('projects')">
+            <i class="fas fa-arrow-right"></i>
+            View Smart Recommendations
+          </button>
+        </div>
+        
+        <div style="background: rgba(16, 185, 129, 0.1); padding: 20px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2);">
+          <h4 style="color: var(--success-color); margin-bottom: 8px;">
+            <i class="fas fa-folder-open"></i>
+            My Applications
+          </h4>
+          <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.9rem;">
+            Track the status of your project applications and manage your portfolio.
+          </p>
+          <button class="btn secondary" onclick="showSection('my_projects')">
+            <i class="fas fa-arrow-right"></i>
+            View Applications
+          </button>
+        </div>
+      </div>
+    `;
+  } else if (name === 'projects') {
+    loadFragment('fetch_projects.php');
+  } else if (name === 'my_projects') {
+    loadFragment('project_analysis.php');
+  } else if (name === 'notifications') {
+    loadFragment('notifications.php');
+  }
+}
+
+function initializeDashboard() {
+  setActiveNav('profile');
+}
+
 document.addEventListener('DOMContentLoaded', initializeDashboard);
 </script>
 </body>
