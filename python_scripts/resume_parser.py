@@ -53,22 +53,84 @@ def extract_skills(text):
     return list(found_skills)
 
 def extract_education(text):
-    """Extract education level from resume text"""
-    # Ordered from highest to lowest to prevent early, incorrect matches
-    education_keywords = {
-        'phd': 'PhD', 'doctorate': 'PhD', 'ph.d': 'PhD',
-        'master': 'Masters', 'masters': 'Masters', 'm.tech': 'Masters', 'mtech': 'Masters', 'mba': 'Masters', 'mca': 'Masters',
-        'bachelor': 'Bachelors', 'btech': 'Bachelors', 'b.tech': 'Bachelors', 'be': 'Bachelors', 'b.e': 'Bachelors', 'bsc': 'Bachelors', 'b.sc': 'Bachelors', 'bca': 'Bachelors'
-    }
-    
+    """Extract education level from resume text with enhanced detection"""
+    # Convert to lowercase for case-insensitive matching
     text_lower = text.lower()
     
-    for keyword, level in education_keywords.items():
-        # Use word boundaries to ensure we're matching whole words
-        if re.search(r'\b' + re.escape(keyword) + r'\b', text_lower):
-            return level
+    # First, create a repaired version without spaces (like the skills function does)
+    repaired_text = ''.join(text.split()).lower()
+    
+    # Enhanced education keywords with multiple variations
+    # Ordered from highest to lowest to prevent early, incorrect matches
+    education_patterns = [
+        # PhD patterns
+        {
+            'level': 'PhD',
+            'patterns': [
+                r'ph\.?d', r'doctorate', r'doctoral', r'phd'
+            ]
+        },
+        # Masters patterns
+        {
+            'level': 'Masters',
+            'patterns': [
+                r'master', r'masters', r'm\.tech', r'mtech', 
+                r'mba', r'mca', r'ms\b', r'm\.s', r'm\.sc', 
+                r'msc', r'm\.e', r'me\b', r'masterofcomputerapplications'
+            ]
+        },
+        # Bachelors patterns
+        {
+            'level': 'Bachelors',
+            'patterns': [
+                r'bachelor', r'bachelors', r'b\.tech', r'btech',
+                r'b\.e', r'be\b', r'b\.sc', r'bsc', r'bca',
+                r'b\.a', r'ba\b', r'b\.com', r'bcom', r'bachelorofcomputerapplications'
+            ]
+        },
+        # Diploma patterns
+        {
+            'level': 'Diploma',
+            'patterns': [
+                r'diploma', r'certificate', r'associate'
+            ]
+        }
+    ]
+    
+    # Check each education level in both original text and repaired text
+    for education_group in education_patterns:
+        for pattern in education_group['patterns']:
+            # Check in original text with word boundaries
+            if re.search(r'\b' + pattern + r'\b', text_lower):
+                return education_group['level']
+            # Check in repaired text (without spaces)
+            if re.search(pattern, repaired_text):
+                return education_group['level']
     
     return 'Not specified'
+
+def extract_experience(text):
+    """Extract experience years from resume text"""
+    text_lower = text.lower()
+    
+    # Patterns to match experience mentions
+    experience_patterns = [
+        r'(\d+)[\s\-+]*year[s]?[\s]*(?:of\s*)?experience',
+        r'experience[\s]*:?[\s]*(\d+)[\s]*year[s]?',
+        r'(\d+)[\s]*yr[s]?[\s]*(?:of\s*)?experience',
+        r'(\d+)[\s]*\+?[\s]*years?[\s]*in',
+        r'over[\s]*(\d+)[\s]*years?',
+        r'more\s*than\s*(\d+)\s*years?'
+    ]
+    
+    years = []
+    for pattern in experience_patterns:
+        matches = re.finditer(pattern, text_lower)
+        for match in matches:
+            years.append(int(match.group(1)))
+    
+    # Return the maximum years found, or 0 if none found
+    return max(years) if years else 0
 
 def analyze_resume(pdf_path):
     """Main function to analyze resume and return structured data"""
@@ -77,26 +139,38 @@ def analyze_resume(pdf_path):
     if text.startswith("Error"):
         return {"error": text}
     
+    # Debug: Log the extracted text (first 500 chars)
+    debug_text = text[:500] + "..." if len(text) > 500 else text
+    print(f"DEBUG: Extracted text preview: {debug_text}", file=sys.stderr)
+    
     skills = extract_skills(text)
-    # Experience extraction is difficult with this text format, can be improved later
-    experience = 0 
+    experience = extract_experience(text)
     education = extract_education(text)
     
-    return {
+    # Debug: Log what we found
+    print(f"DEBUG: Found skills: {skills}", file=sys.stderr)
+    print(f"DEBUG: Found experience: {experience} years", file=sys.stderr)
+    print(f"DEBUG: Found education: {education}", file=sys.stderr)
+    
+    result = {
         "skills": skills,
         "experience_years": experience,
         "education_level": education,
     }
+    
+    return result
 
 def main():
     """Main function for command line usage"""
     if len(sys.argv) != 2:
-        print(json.dumps({"error": "Usage: python resume_parser.py <pdf_path>"}))
+        error_result = {"error": "Usage: python resume_parser.py <pdf_path>"}
+        print(json.dumps(error_result))
         sys.exit(1)
     
     pdf_path = sys.argv[1]
     result = analyze_resume(pdf_path)
     
+    # Output only the JSON result to stdout
     print(json.dumps(result, indent=2))
 
 if __name__ == "__main__":

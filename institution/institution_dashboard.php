@@ -183,16 +183,16 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
         
       </div>
       
-      <div class="stats-container">
+      <!-- <div class="stats-container">
         <div id="quick_stats">
           <div class="stats-grid">
             <div class="stat-item">
-              <!-- <div class="stat-number">0</div>
-              <div class="stat-label">Projects</div> -->
+              <div class="stat-number">0</div>
+              <div class="stat-label">Projects</div>
             </div>
           </div>
         </div>
-      </div>
+      </div> -->
       
       <div style="margin-top: 20px;">
         <button class="btn" onclick="location.href='update_institution_profile.php'" style="width: 100%;">
@@ -248,7 +248,19 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
     </div>
   </div>
 </div>
-
+<footer style="text-align: center; padding: 20px 10px; margin-top: 40px; border-top: 1px solid #e9ecef;">
+    <div style="margin-bottom: 12px; font-size: 0.9rem; color: #f7f3f3ff;">
+        Copyright &copy; 2025 Sidharth Rahul. All Rights Reserved.
+    </div>
+    <div>
+        <a href="https://linkedin.com/in/sidharthrahul04" target="_blank" rel="noopener noreferrer" title="LinkedIn" style="color: #333; text-decoration: none; font-size: 1.6rem; margin: 0 10px; transition: color 0.3s;" onmouseover="this.style.color='#0077b5'" onmouseout="this.style.color='#333'">
+            <i class="fab fa-linkedin"></i>
+        </a>
+        <a href="https://github.com/Sidharthrahul04" target="_blank" rel="noopener noreferrer" title="GitHub" style="color: #333; text-decoration: none; font-size: 1.6rem; margin: 0 10px; transition: color 0.3s;" onmouseover="this.style.color='#181717'" onmouseout="this.style.color='#333'">
+            <i class="fab fa-github"></i>
+        </a>
+    </div>
+</footer>
 <script>
 // Small notification box function
 function showNotification(message, type) {

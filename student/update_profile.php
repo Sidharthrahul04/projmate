@@ -35,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             // Handle file upload
             $resume_path = $student['resume_path']; // Keep existing by default
+            $resume_updated = false; // Track if resume was updated
             
             if (isset($_FILES['resume']) && $_FILES['resume']['error'] === UPLOAD_ERR_OK) {
                 $upload_dir = '../uploads/';
@@ -63,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         unlink($upload_dir . $student['resume_path']);
                     }
                     $resume_path = $new_filename;
+                    $resume_updated = true; // Mark that resume was updated
                 } else {
                     throw new Exception('Failed to upload resume file.');
                 }
@@ -72,12 +74,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!empty($password)) {
                 // Update with password
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $conn->prepare("UPDATE students SET name = ?, email = ?, phone = ?, password = ?, resume_path = ? WHERE id = ?");
-                $stmt->bind_param("sssssi", $name, $email, $phone, $hashed_password, $resume_path, $student_id);
+                if ($resume_updated) {
+                    // Reset is_resume_analyzed if resume was updated
+                    $stmt = $conn->prepare("UPDATE students SET name = ?, email = ?, phone = ?, password = ?, resume_path = ?, is_resume_analyzed = 0 WHERE id = ?");
+                    $stmt->bind_param("sssssi", $name, $email, $phone, $hashed_password, $resume_path, $student_id);
+                } else {
+                    $stmt = $conn->prepare("UPDATE students SET name = ?, email = ?, phone = ?, password = ?, resume_path = ? WHERE id = ?");
+                    $stmt->bind_param("sssssi", $name, $email, $phone, $hashed_password, $resume_path, $student_id);
+                }
             } else {
                 // Update without password
-                $stmt = $conn->prepare("UPDATE students SET name = ?, email = ?, phone = ?, resume_path = ? WHERE id = ?");
-                $stmt->bind_param("ssssi", $name, $email, $phone, $resume_path, $student_id);
+                if ($resume_updated) {
+                    // Reset is_resume_analyzed if resume was updated
+                    $stmt = $conn->prepare("UPDATE students SET name = ?, email = ?, phone = ?, resume_path = ?, is_resume_analyzed = 0 WHERE id = ?");
+                    $stmt->bind_param("ssssi", $name, $email, $phone, $resume_path, $student_id);
+                } else {
+                    $stmt = $conn->prepare("UPDATE students SET name = ?, email = ?, phone = ?, resume_path = ? WHERE id = ?");
+                    $stmt->bind_param("ssssi", $name, $email, $phone, $resume_path, $student_id);
+                }
             }
             
             if ($stmt->execute()) {

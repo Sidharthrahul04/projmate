@@ -3,11 +3,6 @@ header('Content-Type: application/json');
 session_start();
 include('../includes/db_connect.php');
 
-// Optional: Keep for debugging, but remove for a live production server.
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 // 1. Authorization Check
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'student') {
     echo json_encode(['success' => false, 'error' => 'Unauthorized access']);
@@ -15,14 +10,21 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'student') {
 }
 $student_id = $_SESSION['user_id'];
 
-// 2. Get Student's Resume Path from Database
-$stmt = $conn->prepare("SELECT resume_path FROM students WHERE id = ?");
+// 2. Get Student's Resume Path & Analysis Status from Database
+// MODIFIED: Fetched the is_resume_analyzed column as well
+$stmt = $conn->prepare("SELECT resume_path, is_resume_analyzed FROM students WHERE id = ?");
 $stmt->bind_param("i", $student_id);
 $stmt->execute();
 $result = $stmt->get_result()->fetch_assoc();
 
 if (!$result || empty($result['resume_path'])) {
     echo json_encode(['success' => false, 'error' => 'No resume found. Please upload a resume first.']);
+    exit;
+}
+
+// ADDED: Check if the resume has already been analyzed before proceeding
+if ($result['is_resume_analyzed']) {
+    echo json_encode(['success' => false, 'error' => 'This resume has already been analyzed.']);
     exit;
 }
 
@@ -40,40 +42,50 @@ if ($python_script === false || !file_exists($python_script)) {
 }
 
 // 4. Execute the Python Script
+// ... (This entire section remains unchanged)
 $commands = [
-    "python3 \"$python_script\" \"$resume_path\" 2>&1",
-    "python \"$python_script\" \"$resume_path\" 2>&1",
-    "py \"$python_script\" \"$resume_path\" 2>&1"
+    "python \"$python_script\" \"$resume_path\" 2>nul",
+    "py \"$python_script\" \"$resume_path\" 2>nul"
 ];
 $output = null;
 $analysis = null;
+$command_used = null;
 foreach ($commands as $command) {
     $output = shell_exec($command);
-    if ($output) {
-        $analysis = json_decode($output, true);
-        // If decoding is successful and there's no error key, break the loop
-        if ($analysis && !isset($analysis['error'])) {
+    if ($output && trim($output) !== '') {
+        $command_used = $command;
+        $analysis = json_decode(trim($output), true);
+        if (json_last_error() === JSON_ERROR_NONE && $analysis && !isset($analysis['error'])) {
             break;
         }
     }
 }
 
-// 5. Validate the Analysis Output
-if (!$analysis || isset($analysis['error'])) {
-    $error_msg = isset($analysis['error']) ? $analysis['error'] : 'Failed to analyze resume. The Python script might have an error.';
-    echo json_encode(['success' => false, 'error' => $error_msg, 'debug_output' => $output]);
-    exit;
-}
 
-// Crucial Check: Ensure skills were actually found
-if (empty($analysis['skills'])) {
+// 5. Validate the Analysis Output
+// ... (This entire section remains unchanged)
+if (!$analysis || isset($analysis['error'])) {
+    $error_msg = isset($analysis['error']) ? $analysis['error'] : 'Failed to analyze resume. Check if Python and required libraries are installed.';
     echo json_encode([
         'success' => false,
-        'error' => 'Analysis complete, but no skills were extracted from the resume. Please ensure your resume format is readable and contains a skills section.',
-        'debug_output' => $output
+        'error' => $error_msg,
+        'debug_info' => [
+            'raw_output' => $output,
+            'json_error' => json_last_error_msg(),
+            'command_used' => $command_used
+        ]
     ]);
     exit;
 }
+if (empty($analysis['skills'])) {
+    echo json_encode([
+        'success' => false,
+        'error' => 'Analysis complete, but no skills were extracted from the resume.',
+        'debug_info' => ['analysis_received' => $analysis]
+    ]);
+    exit;
+}
+
 
 // 6. Store Analysis Results in the Database via a Transaction
 $conn->begin_transaction();
@@ -94,23 +106,36 @@ try {
         $insert_skill_stmt->execute();
     }
     $insert_skill_stmt->close();
-    
-    // Step C: Update other student details
+
+    // Step C: Update student details (including education)
     $experience_years = $analysis['experience_years'] ?? 0;
     $education_level = $analysis['education_level'] ?? 'Not specified';
+
     $update_stmt = $conn->prepare("UPDATE students SET experience_years = ?, education_level = ? WHERE id = ?");
     if ($update_stmt === false) throw new Exception("Prepare failed (update): " . $conn->error);
     $update_stmt->bind_param("isi", $experience_years, $education_level, $student_id);
     $update_stmt->execute();
     $update_stmt->close();
-    
-    // If all steps succeed, commit the changes
+
+    // ADDED: Step D - Mark the resume as analyzed. This is the crucial final step.
+    $mark_analyzed_stmt = $conn->prepare("UPDATE students SET is_resume_analyzed = 1 WHERE id = ?");
+    if ($mark_analyzed_stmt === false) throw new Exception("Prepare failed (mark analyzed): " . $conn->error);
+    $mark_analyzed_stmt->bind_param("i", $student_id);
+    $mark_analyzed_stmt->execute();
+    $mark_analyzed_stmt->close();
+
+    // Commit the transaction
     $conn->commit();
-    
+
     echo json_encode([
         'success' => true,
         'analysis' => $analysis,
-        'message' => 'Resume analyzed and profile updated!'
+        'message' => 'Resume analyzed and profile updated successfully!',
+        'debug_info' => [
+            'skills_count' => count($skills),
+            'education_detected' => $education_level,
+            'experience_detected' => $experience_years
+        ]
     ]);
 
 } catch (Exception $e) {

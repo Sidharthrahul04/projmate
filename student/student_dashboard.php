@@ -12,7 +12,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'student') {
 $student_id = (int) $_SESSION['user_id'];
 
 // Fetch student's basic info
-$stmt = $conn->prepare("SELECT name, email, phone, resume_path FROM students WHERE id = ?");
+$stmt = $conn->prepare("SELECT name, email, phone, resume_path, is_resume_analyzed FROM students WHERE id = ?");
 $stmt->bind_param("i", $student_id);
 $stmt->execute();
 $student = $stmt->get_result()->fetch_assoc();
@@ -62,30 +62,44 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
 <!-- Main container -->
 <div class="container">
   <div class="topcard">
-    <div>
-      <h1>
-        <i class="fas fa-graduation-cap" style="margin-right: 12px; color: var(--primary-color);"></i>
-        Welcome, <?= htmlspecialchars($student['name'] ?? 'Student') ?>
-      </h1>
-      <div class="small-muted">
-        <i class="fas fa-envelope"></i>
-        <?= htmlspecialchars($student['email'] ?? '-') ?>
-        &nbsp; | &nbsp;
-        <i class="fas fa-phone"></i>
-        <?= htmlspecialchars($student['phone'] ?? '-') ?>
-      </div>
+        <div>
+            <h1>
+                <i class="fas fa-graduation-cap" style="margin-right: 12px; color: var(--primary-color);"></i>
+                Welcome, <?= htmlspecialchars($student['name'] ?? 'Student') ?>
+            </h1>
+            <div class="small-muted">
+                <i class="fas fa-envelope"></i>
+                <?= htmlspecialchars($student['email'] ?? '-') ?>
+                &nbsp; | &nbsp;
+                <i class="fas fa-phone"></i>
+                <?= htmlspecialchars($student['phone'] ?? '-') ?>
+            </div>
+        </div>
+        <div class="action-buttons">
+            <?php if (!empty($student['resume_path']) && !$student['is_resume_analyzed']): ?>
+                <button class="btn" onclick="analyzeResume()">
+                    <i class="fas fa-robot"></i>
+                    Analyze Resume
+                </button>
+            <?php elseif (!empty($student['resume_path']) && $student['is_resume_analyzed']): ?>
+                <button class="btn" disabled style="background-color: #4ade80; cursor: not-allowed;">
+                    <i class="fas fa-check-circle"></i>
+                    Analysis Complete
+                </button>
+            <?php else: ?>
+                <button class="btn" disabled style="cursor: not-allowed;">
+                    <i class="fas fa-upload"></i>
+                    Upload Resume to Analyze
+                </button>
+            <?php endif; ?>
+
+            <button class="btn secondary" onclick="showSection('my_projects')">
+                <i class="fas fa-folder"></i>
+                My Projects
+            </button>
+        </div>
     </div>
-    <div class="action-buttons">
-      <button class="btn" onclick="analyzeResume()">
-        <i class="fas fa-robot"></i>
-        Analyze Resume
-      </button>
-      <button class="btn secondary" onclick="showSection('my_projects')">
-        <i class="fas fa-folder"></i>
-        My Projects
-      </button>
-    </div>
-  </div>
+
 
   <div class="grid">
     <!-- Left Profile Card -->
@@ -182,7 +196,19 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
     </div>
   </div>
 </div>
-
+<footer style="text-align: center; padding: 20px 10px; margin-top: 40px; border-top: 1px solid #e9ecef;">
+    <div style="margin-bottom: 12px; font-size: 0.9rem; color: #fbf9f9ff;">
+        Copyright &copy; 2025 Sidharth Rahul. All Rights Reserved.
+    </div>
+    <div>
+        <a href="https://linkedin.com/in/sidharthrahul04" target="_blank" rel="noopener noreferrer" title="LinkedIn" style="color: #333; text-decoration: none; font-size: 1.6rem; margin: 0 10px; transition: color 0.3s;" onmouseover="this.style.color='#0077b5'" onmouseout="this.style.color='#333'">
+            <i class="fab fa-linkedin"></i>
+        </a>
+        <a href="https://github.com/Sidharthrahul04" target="_blank" rel="noopener noreferrer" title="GitHub" style="color: #333; text-decoration: none; font-size: 1.6rem; margin: 0 10px; transition: color 0.3s;" onmouseover="this.style.color='#181717'" onmouseout="this.style.color='#333'">
+            <i class="fab fa-github"></i>
+        </a>
+    </div>
+</footer>
 <script>
 
 function applyToProject(projectId) {

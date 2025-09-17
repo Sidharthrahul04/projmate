@@ -422,7 +422,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
         </form>
     </div>
-
+        
     <script>
         function validateLogin() {
             let valid = true;

@@ -671,7 +671,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
         </form>
     </div>
-
     <script>
         let currentUserType = '<?= isset($_POST['user_type']) ? $_POST['user_type'] : '' ?>';
 

@@ -297,6 +297,9 @@ function applyToProject(projectId, button) {
     button.disabled = true;
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...';
     
+    // Get reference to the project card for removal
+    const projectCard = button.closest('.project-card');
+    
     fetch('apply_projects.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -305,23 +308,39 @@ function applyToProject(projectId, button) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            button.innerHTML = '<i class="fas fa-check"></i> Applied';
-            button.className = 'btn applied-btn';
-            button.disabled = true;
-            button.onclick = null;
-            
+            // Show success notification
             if (typeof showNotification === 'function') {
                 showNotification('Application submitted successfully!', 'success');
             } else {
                 alert('Application submitted successfully!');
             }
             
+            // Option 1: Remove the project card with animation
+            if (projectCard) {
+                projectCard.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                projectCard.style.opacity = '0';
+                projectCard.style.transform = 'translateY(-20px)';
+                
+                setTimeout(() => {
+                    projectCard.remove();
+                    
+                    // Check if no more projects remain
+                    const remainingProjects = document.querySelectorAll('.project-card');
+                    if (remainingProjects.length === 0) {
+                        showNoProjectsMessage();
+                    }
+                }, 300);
+            }
+            
+            // Optional: Navigate to my projects after a delay
             setTimeout(() => {
                 if (typeof showSection === 'function') {
                     showSection('my_projects');
                 }
             }, 2000);
+            
         } else {
+            // Reset button on error
             button.disabled = false;
             button.innerHTML = originalText;
             
@@ -333,6 +352,7 @@ function applyToProject(projectId, button) {
         }
     })
     .catch(error => {
+        // Reset button on network error
         button.disabled = false;
         button.innerHTML = originalText;
         
@@ -342,5 +362,41 @@ function applyToProject(projectId, button) {
             alert('Network error, please try again.');
         }
     });
+}
+
+// Function to show message when no projects remain
+function showNoProjectsMessage() {
+    const projectsGrid = document.querySelector('.projects-grid');
+    if (projectsGrid) {
+        projectsGrid.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc; border-radius: 12px;">
+                <i class="fas fa-check-circle" style="font-size: 3rem; margin-bottom: 16px; color: #10b981;"></i>
+                <p style="font-size: 1.1rem; margin-bottom: 8px;">All Done!</p>
+                <p style="font-size: 0.9rem;">You've applied to all matching projects. Check back later for new opportunities!</p>
+            </div>
+        `;
+    }
+}
+
+// Alternative approach: Reload just the recommendations section
+function refreshRecommendations() {
+    fetch(window.location.href)
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newContent = doc.querySelector('.projects-grid') || doc.querySelector('.profile-summary').parentNode;
+            
+            if (newContent) {
+                const currentContainer = document.querySelector('.projects-grid')?.parentNode || 
+                                      document.querySelector('.profile-summary')?.parentNode;
+                if (currentContainer) {
+                    currentContainer.innerHTML = newContent.innerHTML;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Failed to refresh recommendations:', error);
+        });
 }
 </script>
