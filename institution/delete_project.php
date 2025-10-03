@@ -29,17 +29,32 @@ if ($verify_stmt->get_result()->num_rows === 0) {
     exit;
 }
 
-// Delete the project
-$delete_stmt = $conn->prepare("DELETE FROM projects WHERE id = ? AND institution_id = ?");
-$delete_stmt->bind_param("ii", $project_id, $institution_id);
+// Start transaction to ensure both operations complete
+$conn->begin_transaction();
 
-if ($delete_stmt->execute()) {
+try {
+    // First, delete all applications for this project
+    $delete_apps_stmt = $conn->prepare("DELETE FROM applications WHERE project_id = ?");
+    $delete_apps_stmt->bind_param("i", $project_id);
+    $delete_apps_stmt->execute();
+    $delete_apps_stmt->close();
+    
+    // Then, delete the project
+    $delete_project_stmt = $conn->prepare("DELETE FROM projects WHERE id = ? AND institution_id = ?");
+    $delete_project_stmt->bind_param("ii", $project_id, $institution_id);
+    $delete_project_stmt->execute();
+    $delete_project_stmt->close();
+    
+    // Commit transaction
+    $conn->commit();
     echo json_encode(['success' => true]);
-} else {
-    echo json_encode(['success' => false, 'error' => 'Failed to delete project.']);
+    
+} catch (Exception $e) {
+    // Rollback on error
+    $conn->rollback();
+    echo json_encode(['success' => false, 'error' => 'Failed to delete project: ' . $e->getMessage()]);
 }
 
-$delete_stmt->close();
 $verify_stmt->close();
 $conn->close();
 ?>

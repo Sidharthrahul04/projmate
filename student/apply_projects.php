@@ -41,7 +41,7 @@ $student_stmt->execute();
 $student_info = $student_stmt->get_result()->fetch_assoc();
 
 // Insert application
-$insert_stmt = $conn->prepare("INSERT INTO applications (student_id, project_id, status, applied_at) VALUES (?, ?, 'pending', NOW())");
+$insert_stmt = $conn->prepare("INSERT INTO applications(student_id, project_id, status, applied_at) VALUES (?, ?, 'pending', NOW())");
 $insert_stmt->bind_param("ii", $student_id, $project_id);
 
 if ($insert_stmt->execute()) {

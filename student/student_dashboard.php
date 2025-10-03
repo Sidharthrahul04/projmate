@@ -201,7 +201,7 @@ $updated = isset($_GET['updated']) && $_GET['updated'] == '1';
         Copyright &copy; 2025 Sidharth Rahul. All Rights Reserved.
     </div>
     <div>
-        <a href="https://linkedin.com/in/sidharthrahul04" target="_blank" rel="noopener noreferrer" title="LinkedIn" style="color: #333; text-decoration: none; font-size: 1.6rem; margin: 0 10px; transition: color 0.3s;" onmouseover="this.style.color='#0077b5'" onmouseout="this.style.color='#333'">
+        <a href="https://linkedin.com/in/sidharthrahul04" title="LinkedIn" style="color: #333; text-decoration: none; font-size: 1.6rem; margin: 0 10px; transition: color 0.3s;" onmouseover="this.style.color='#0077b5'" onmouseout="this.style.color='#333'">
             <i class="fab fa-linkedin"></i>
         </a>
         <a href="https://github.com/Sidharthrahul04" target="_blank" rel="noopener noreferrer" title="GitHub" style="color: #333; text-decoration: none; font-size: 1.6rem; margin: 0 10px; transition: color 0.3s;" onmouseover="this.style.color='#181717'" onmouseout="this.style.color='#333'">
